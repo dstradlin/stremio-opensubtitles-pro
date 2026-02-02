@@ -1,9 +1,9 @@
 {
 	"name": "stremio-opensubtitles-pro",
-	"version": "0.2.0",
-	"description": "Stremio addon with MovieHash + Auto Adjustment support",
+	"version": "0.3.0",
+	"description": "Stremio addon with MovieHash + Auto Adjustment + Auto-Sync (alass)",
 	"scripts": {
-		"start": "node server.js",
+		"start": "node download-alass.js && node server.js",
 		"dev": "nodemon server.js"
 	},
 	"engines": {

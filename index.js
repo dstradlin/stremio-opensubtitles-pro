@@ -101,28 +101,50 @@ app.get('/:configuration?/:resource/:type/:id/:extra?.json', async (req, res) =>
 
 app.get('/sub.vtt', async (req, res) => {
 	try {
-
 		res.setHeader('Cache-Control', 'max-age=86400,staleRevalidate=stale-while-revalidate, staleError=stale-if-error, public');
+		
 		let url, proxy;
 		let autoAdjust = req.query.auto === '1';
+		let autoSync = req.query.autosync === '1';
 		let offsetMs = parseInt(req.query.offset) || 0;
+		let videoUrl = req.query.video || null;
 
 		if (req?.query?.proxy) proxy = JSON.parse(Buffer.from(req.query.proxy, 'base64').toString());
 		if (req?.query?.from) url = req.query.from;
 		else throw 'error: no url';
 
-		console.log("url", url, "proxy", proxy, "autoAdjust", autoAdjust, "offset", offsetMs);
+		console.log("url", url, "proxy", proxy, "autoAdjust", autoAdjust, "autoSync", autoSync, "offset", offsetMs);
+		
 		generated = sub2vtt.gerenateUrl(url, { referer: "someurl" });
 		console.log(generated);
+		
 		let sub = new sub2vtt(url, proxy);
 		let file = await sub.getSubtitle();
 
 		if (!file?.subtitle) throw file.status;
 
-		// Aplica auto-adjust se solicitado
-		if (autoAdjust || offsetMs !== 0) {
+		// AUTO-SYNC: Usa alass para sincronizar automaticamente
+		if (autoSync && videoUrl) {
+			console.log('Attempting auto-sync with alass...');
+			const { autoSyncSubtitle } = require('./auto-sync');
+			const syncedSubtitle = await autoSyncSubtitle(videoUrl, url, true);
+			
+			if (syncedSubtitle) {
+				console.log('Auto-sync successful!');
+				file.subtitle = syncedSubtitle;
+			} else {
+				// Fallback para offset manual
+				console.log('Auto-sync failed, using manual offset');
+				if (autoAdjust || offsetMs !== 0) {
+					const { adjustSubtitleTiming } = require('./auto-sync');
+					file.subtitle = adjustSubtitleTiming(file.subtitle, offsetMs || 2000);
+				}
+			}
+		} 
+		// MANUAL ADJUST: offset simples
+		else if (autoAdjust || offsetMs !== 0) {
 			const { adjustSubtitleTiming } = require('./auto-sync');
-			file.subtitle = adjustSubtitleTiming(file.subtitle, offsetMs || 2000); // Default 2s offset se auto
+			file.subtitle = adjustSubtitleTiming(file.subtitle, offsetMs || 2000);
 		}
 
 		res.setHeader('Content-Type', 'text/vtt;charset=UTF-8');
