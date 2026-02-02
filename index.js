@@ -86,9 +86,12 @@ app.get('/:configuration?/:resource/:type/:id/:extra?.json', async (req, res) =>
 	}
 
 	if (lang) {
-		subtitles = await Subtitles(type, id, lang, { movieHash, autoAdjust }).then(subtitles => {
-			return subtitles
-		}).catch(error => { console.error(error); res.end(); })
+		try {
+			subtitles = await Subtitles(type, id, lang, { movieHash, autoAdjust });
+		} catch (error) {
+			console.error(error);
+			subtitles = [];
+		}
 	}
 	console.log('subtitles', subtitles)
 	subtitles = subtitles ? JSON.stringify({ subtitles: subtitles }) : JSON.stringify({ subtitles: {} })
